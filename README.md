@@ -13,6 +13,8 @@
 
 ### RNA-seq specific 
 
+*  [RNA sequencing: the teenage years](https://www.ncbi.nlm.nih.gov/pubmed/31341269) A nice review.
+*  [RNA Sequencing Data: Hitchhiker's Guide to Expression Analysis](https://www.annualreviews.org/doi/10.1146/annurev-biodatasci-072018-021255)
 *  [Introduction to RNA-seq analysis youtube video](https://www.youtube.com/watch?v=OEbjHPk20C0&feature=youtu.be&a)  
 *  [RNAseq differential expression analysis – NGS2015](https://monsterbashseq.wordpress.com/2015/08/26/rnaseq-differential-expression-analysis-ngs2015/)  
 *  [Kallisto and sleuth tutorial](https://rawgit.com/pachterlab/sleuth/master/inst/doc/intro.html) blazing fast RNA-seq analysis by Lior Patcher's lab.    [A sleuth for RNA-Seq](https://liorpachter.wordpress.com/2015/08/17/a-sleuth-for-rna-seq/)  
@@ -27,6 +29,7 @@
 *  [paper: Reproducibility of high-throughput mRNA and small RNA sequencing across laboratories](http://www.nature.com/nbt/journal/v31/n11/full/nbt.2702.html)
 *  [paper: Cross-platform normalization of microarray and RNA-seq data for machine learning applications](https://peerj.com/articles/1621/#results|discussion). [Tool](https://github.com/greenelab/TDM) 
 *  [review: Translating RNA sequencing into clinical diagnostics: opportunities and challenges](http://www.nature.com/nrg/journal/v17/n5/full/nrg.2016.10.html)
+* [paper: Thousands of large-scale RNA sequencing experiments yield a comprehensive new human gene list and reveal extensive transcriptional noise](https://www.biorxiv.org/content/early/2018/05/29/332825)
 
 ### RNA-seq experimental design 
 * [Thinking about Designing RNA Seq Experiments to Measure Differential Gene Expression: The Basics](http://michelebusby.tumblr.com/post/26913184737/thinking-about-designing-rna-seq-experiments-to) a blog post 
@@ -45,6 +48,39 @@
 
 ### Normalization, quantification, and differential expression
 
+Normalization is essential for RNAseq analysis. However, one needs to understand the underlining assumptions for each methods. Most methods assume there is no global changes between conditions (e.g. TMM normalization). However, this may not be true when global effect occurs. For example, if you delete a gene that controls transcription, you expect to see global gene expression reduction. In that case, other normalization methods need to be considered. (e.g. spike-in controls). The same principle applies to other high-throughput sequencing data such as ChIPseq.
+
+read this very important paper by Rafael A Irizarry: [Genome-wide repressive capacity of promoter DNA methylation is revealed through epigenomic manipulation](https://www.biorxiv.org/content/early/2018/08/01/381145)
+
+DESseq2 normalization by Simon Anders:
+>To estimate the library size, simply taking the total number of (mapped or unmapped) reads is, in our experience, not a good idea.
+Sometimes, a few very strongly expressed genes are differentially expressed, and as they make up a good part of the total counts, they skew this number. After you divide by total counts, these few strongly expressed genes become equal, and the whole rest looks differentially expressed.
+
+>The following simple alternative works much better:
+
+>- Construct a "reference sample" by taking, for each gene, the geometric mean of the counts in all samples.
+
+>- To get the sequencing depth of a sample relative to the reference, calculate for each gene the quotient of the counts in your sample divided by the counts of the reference sample. Now you have, for each gene, an estimate of the depth ratio. 
+
+>- Simply take the median of all the quotients to get the relative depth of the library.
+
+>This is what the `estimateSizeFactors` function of our DESeq package doese.
+
+If one wants to use a set of genes that are not affected by the global change, do
+
+```r
+dds = newCountDataSet(CountTable, Design$condition )
+dds <- estimateSizeFactors(dds, 
+                           controlGenes = rownames(dds) %in% norm_genes)
+dds_global <- estimateSizeFactors(dds)
+dds_global <- DESeq(dds_global)
+res_global <- results(dds_global)
+```
+or give self-defined size factors.
+
+```r
+sizeFactors(dds) = c(my_Values)
+```
 *  [A Comparison of Methods: Normalizing High-Throughput RNA Sequencing Data](http://biorxiv.org/content/early/2015/09/03/026062)
 *  [Errors in RNA-Seq quantification affect genes of relevance to human disease](http://www.genomebiology.com/2015/16/1/177)  
 *  [A comprehensive evaluation of ensembl, RefSeq, and UCSC annotations in the context of RNA-seq read mapping and gene quantification](http://www.biomedcentral.com/1471-2164/16/97)  
@@ -112,7 +148,8 @@ Finally, differential expression is carried out by
 
 * [In RNA-Seq, 2 != 2: Between-sample normalization](https://haroldpimentel.wordpress.com/2014/12/08/in-rna-seq-2-2-between-sample-normalization/)  
 * [RPKM/FPKM, TPM and raw counts for RNA-seq](http://crazyhottommy.blogspot.com/2015/06/rpkmfpkm-tpm-and-raw-counts-for-rna-seq.html)  
-* [Youtube video counts vs TPM](https://www.youtube.com/watch?v=ztyjiCCt_lM)
+* [Youtube video counts vs TPM](https://www.youtube.com/watch?v=ztyjiCCt_lM)\
+* [Misuse of RPKM or TPM normalization when comparing across samples and sequencing protocols](https://rnajournal.cshlp.org/content/early/2020/04/13/rna.074922.120)
 
 ### Benchmarking 
 [bcbio.rnaseq](https://github.com/roryk/bcbio.rnaseq)    
@@ -126,12 +163,14 @@ Finally, differential expression is carried out by
 
 *  [RNASkim](https://github.com/zzj/RNASkim)
 *  [Salmon: Accurate, Versatile and Ultrafast Quantification from RNA-seq Data using Lightweight-Alignment](http://biorxiv.org/content/early/2015/06/27/021592). It is the sucessor of [Salfish](http://www.cs.cmu.edu/~ckingsf/software/sailfish/downloads.html)  I have used Salfish once, and it is super-fast! Salmon is supposed to be even better. [tutorial](https://github.com/ngs-docs/2015-nov-adv-rna/blob/master/AGENDA.md)
-*  [Kallisto](http://nextgenseek.com/2015/05/kallisto-a-new-ultra-fast-rna-seq-quantitation-method/) from Lior Patcher's lab. [paper: Near-optimal probabilistic RNA-seq quantification](http://www.nature.com/nbt/journal/vaop/ncurrent/full/nbt.3519.html)  
+*  [Kallisto](http://nextgenseek.com/2015/05/kallisto-a-new-ultra-fast-rna-seq-quantitation-method/) from Lior Patcher's lab. [paper: Near-optimal probabilistic RNA-seq quantification](http://www.nature.com/nbt/journal/vaop/ncurrent/full/nbt.3519.html) 
 *  [sleuth](http://pachterlab.github.io/sleuth/) works with Kallisto for differential expression. 
+*  [NORA: A tool for transcript quantification where accuracy matters](https://bioturing.com/nora) claims to be more accurate than RSEM, Salmon and Kallisto.
 *  [paper: Differential analysis of RNA-Seq incorporating quantification uncertainty](http://biorxiv.org/content/early/2016/06/10/058164) by Sleuth from Lior Pachter group.
 *  [Differential analysis of RNA-Seq incorporating quantification uncertainty: sleuth](http://biorxiv.org/content/early/2016/06/10/058164)
 *  [Reanalysis of published RNA-Seq data using kallisto and sleuth](http://lair.berkeley.edu/) based on shiny.
 *  [tximport: import and summarize transcript-level estimates for gene-level analysis](https://github.com/mikelove/tximport/blob/master/vignettes/tximport.md) now on [bioconductor](http://bioconductor.org/packages/devel/bioc/html/tximport.html)   
+* [tximeta](https://github.com/mikelove/tximeta) by Mike Love. Import transcript quantification into R/Bioconductor with automatic annotation metadata.
 *  [f1000 research paper Differential analyses for RNA-seq: transcript-level estimates improve gene-level inferences](http://f1000research.com/articles/4-1521/v2) from Mike love et.al.
 *  [RATS](https://github.com/bartongroup/RATS): Relative Abundance of Transcripts: An R package for the detection of Differential. Transcript isoform Usage.  
 
@@ -144,6 +183,8 @@ The paper transcript-level estimates improve gene-level inferences above also ta
 1) differential gene expression (DGE) studies, where the overall transcriptional output of each gene is compared between conditions;    2) differential transcript/exon usage (DTU/DEU) studies, where the composition of a gene’s isoform abundance spectrum is compared between conditions, or  
 3) differential transcript expression (DTE) studies, where the interest lies in whether individual transcripts show differential expression between conditions.  
 ![](https://cloud.githubusercontent.com/assets/4106146/18142832/e86c1dd4-6f84-11e6-8efb-8dd404e2942a.png)
+
+* [Swimming downstream: statistical analysis of differential transcript usage following Salmon quantification](https://f1000research.com/articles/7-952/v1)
 
 ! [MATS](http://rnaseq-mats.sourceforge.net/rmatsdockerbeta/) is a computational tool to detect differential alternative splicing events from RNA-Seq data. The statistical model of MATS calculates the P-value and false discovery rate that the difference in the isoform ratio of a gene between two conditions exceeds a given user-defined threshold.
 
@@ -199,14 +240,25 @@ Thanks [Rob Patro](https://twitter.com/nomad421) for pointing it out!
 [A framework for RNA quality correction in differential expression analysis](http://www.biorxiv.org/content/early/2016/09/09/074245)
 
 ### Databases
+* [MiPanda](http://www.mipanda.org/) is an online resource for the interrogation and visualization of gene expression data from the myriad of publicly available cancer and normal next generation sequencing datasets.
+* [KnockTF a comprehensive human gene expression profile database with knockdown/knockout of transcription factors](http://www.licpathway.net/KnockTF/index.html)
+* [BioJupies Automatically Generates RNA-seq Data Analysis Notebooks](https://amp.pharm.mssm.edu/biojupies/) With BioJupies you can produce in seconds a customized, reusable, and interactive report from your own raw or processed RNA-seq data through a simple user interface
+* [RNA meta analysis](https://rnama.com/docs/search-evaluation) has ~26,700 studies (5,717 RNA-Seq and 20,955 Microarray). https://rnama.com/  Based on 750 manually labeled studies, our clustering algorithm correctly identifies 91% of sample groups.
+* [refine.bio](https://www.refine.bio/)will have harmonized over 60,000 gene expression experiments
 * [ReCount is an online resource consisting of RNA-seq gene count datasets built using the raw data from 18 different studies](http://bowtie-bio.sourceforge.net/recount/) updated version [here](https://jhubiostatistics.shinyapps.io/recount/)
+* [Recount2-FANTOM](https://www.biorxiv.org/content/10.1101/659490v1) Recounting the FANTOM Cage Associated Transcriptome. Long non-coding RNAs (lncRNAs.
 * [The conquer (consistent quantification of external rna-seq data)](http://imlspenticton.uzh.ch:3838/conquer/) repository is developed by Charlotte Soneson and Mark D Robinson at the University of Zurich, Switzerland. single cell RNA-seq data sets.
 * [The Lair](http://pachterlab.github.io/lair/): a resource for exploratory analysis of published RNA-Seq data. From Lior Pachter group!
-* [The Digital Expression Explorer](http://dee.bakeridi.edu.au/index.html) The Digital Expression Explorer (DEE) is a repository of digital gene expression profiles mined from public RNA-seq data sets. These data are obtained from NCBI Short Read Archive.  
+* [The Digital Expression Explorer(dee)](http://dee.bakeridi.edu.au/index.html) The Digital Expression Explorer (DEE) is a repository of digital gene expression profiles mined from public RNA-seq data sets. These data are obtained from NCBI Short Read Archive.  
 [blog post for it](http://genomespot.blogspot.com/2015/10/introducing-digital-expression-explorer.html?utm_content=bufferb6214&utm_medium=social&utm_source=twitter.com&utm_campaign=buffer)
+* [dee2](http://dee2.io/) Digital Expression Explorer 2. Digital Expression Explorer 2 (DEE2) is a repository of uniformly processed RNA-seq data mined from public data obtained from NCBI Short Read Archive. By Ziemann Mark et.al! Version 2 of dee.
+* [Extracting allelic read counts from 250,000 human sequencing runs in Sequence Read Archive](https://www.biorxiv.org/content/early/2018/08/07/386441?rss=1) [data](https://www.synapse.org/#!Synapse:syn11415602/wiki/492470)
 * [SHARQ Search public, human, RNA-seq experiments by cell, tissue type, and other features | Indexing 19807 files](http://sharq.compbio.cs.cmu.edu/)
 * [MetaSRA: normalized sample-specific metadata for the Sequence Read Archive](http://biorxiv.org/content/early/2016/11/30/090506)
 * [ARCHS4: Massive Mining of Publicly Available RNA-seq Data from Human and Mouse](https://amp.pharm.mssm.edu/archs4/) ARCHS4 provides access to gene counts from HiSeq 2000, HiSeq 2500 and NextSeq 500 platforms for human and mouse experiments from GEO and SRA. 
+* [iDEP-reads: Uniformlly processed public RNA-Seq data](http://bioinformatics.sdstate.edu/reads/) Read counts data for 5,470 human and mouse datasets from ARCHS4 v6 and 12,670 datasets from DEE2 for 9 model organisms by steven Ge.
+* [SRA-explorer](https://ewels.github.io/sra-explorer/) This tool aims to make datasets within the Sequence Read Archive more accessible.
+* [OmicIDX on BigQuery](https://seandavi.github.io/2019/06/omicidx-on-bigquery/) by Sean Davis who develped SRAdb at NIH. In practice, the OmicIDX mines data from the NCBI Sequence Read Archive (SRA) and NCBI Biosample databases (updated daily).
 * [RESTful RNA-seq Analysis API](http://www.ebi.ac.uk/about/news/service-news/new-restful-rna-seq-analysis-api) A simple RESTful API to access analysis results of all public RNAseq data for nearly 200 species in European Nucleotide Archive.
 * [intropolis](https://github.com/nellore/intropolis) is a list of exon-exon junctions found across **21,504** human RNA-seq samples on the Sequence Read Archive (SRA) from spliced read alignment to hg19 with Rail-RNA. Two files are provided:
 * [ExpressionAtlas bioconductor package](http://www.bioconductor.org/packages/release/bioc/html/ExpressionAtlas.html):
@@ -215,10 +267,14 @@ Thanks [Rob Patro](https://twitter.com/nomad421) for pointing it out!
 * [batch recompute ~20,000 RNA-seq samples from larget sequencing project such as TCGA, TARGET and GETEX](https://genome-cancer.soe.ucsc.edu/proj/site/xena/datapages/?host=https://toil.xenahubs.net). Used `hg38` and `gencode v21` as annotation.
 * [A cloud-based workflow to quantify transcript-expression levels in public cancer compendia](http://biorxiv.org/content/early/2016/07/12/063552) used kallisto for TCGA/CCLE datasets and gencode v24 as annotation.
 * [OMics Compendia Commons (OMiCC)](https://omicc.niaid.nih.gov/) OMiCC is a community-based, biologist-friendly web platform for creating and (meta-) analyzing annotated gene-expression data compendia across studies and technology platforms for more than 24,000 human and mouse studies from Gene Expression Omnibus (GEO)
+* [GEIPA](http://gepia.cancer-pku.cn/) interactively explore TCGA expression data, survival etc
 * [GEOdiver](http://www.geodiver.co.uk/) An easy to use web tool for analysing GEO datasets.
 * [ScanGEO](http://scangeo.dartmouth.edu/ScanGEO/) - parallel mining of high-throughput gene expression data
 * [shinyGEO](http://gdancik.github.io/shinyGEO/) a web-based application for performing differential expression and survival analysis on Gene Expression Omnibus datasets.
+* [GREIN](https://hub.docker.com/r/ucbd2k/grein/): An interactive web platform for re-analyzing GEO RNA-seq data
+* [ImaGEO](http://bioinfo.genyo.es/imageo/) Integrative Meta-Analysis of GEO Data.
 * [Expression Atlas update--an integrated database of gene and protein expression in humans, animals and plants](http://www.ebi.ac.uk/gxa/home) It consists of selected microarray and RNA-sequencing studies from ArrayExpress, which have been manually curated, annotated with ontology terms, checked for high quality and processed using standardised analysis methods. Since the last update, Atlas has grown seven-fold (1572 studies as of August 2015), and incorporates baseline expression profiles of tissues from Human Protein Atlas, GTEx and FANTOM5, and of cancer cell lines from ENCODE, CCLE and Genentech projects.
+* [DCTD Releases A New Resource for Exploring Cell Line Transcriptional Responses to Anti-Cancer Agents: The NCI Transcriptional Pharmacodynamics Workbench](https://tpwb.nci.nih.gov/GeneExpressionNCI60/TPWorkbench/)
 * [scRNASeqDB](https://bioinfo.uth.edu/scrnaseqdb/) a database for gene expression profiling in human single cell by RNA-seq
 * [JingleBells](http://jinglebells.bgu.ac.il/) - A repository of standardized single cell RNA-Seq datasets for analysis and visualization in IGV of the raw reads at the single cell level. Currently focused on immune cells. (http://www.jimmunol.org/content/198/9/3375.long)
 
@@ -235,8 +291,13 @@ Thanks [Rob Patro](https://twitter.com/nomad421) for pointing it out!
 * [DAVID](https://david.ncifcrf.gov/):The Database for Annotation, Visualization and Integrated Discovery (DAVID ). *UPDATED in 2016!!!*
 * [EGSEA](https://bioconductor.org/packages/release/bioc/html/EGSEA.html)
  Ensemble of Gene Set Enrichment Analyses. By Gordon Smith. take a look!
+* [DESeq to fgsea](https://stephenturner.github.io/deseq-to-fgsea/) tutorial by Stephen Turner.
+* [Lightweight Iterative Gene set Enrichment in R (LIGER)](https://github.com/JEFworks/liger) by Jean Fan.
+* [Pathway enrichment analysis and visualization of omics data using g:Profiler, GSEA, Cytoscape and EnrichmentMap](https://www.nature.com/articles/s41596-018-0103-9) 2019 Nature Protocol
 
 ### Fusion gene detection
+* [Accuracy assessment of fusion transcript detection via read-mapping and de novo fusion transcript assembly-based methods](https://genomebiology.biomedcentral.com/articles/10.1186/s13059-019-1842-9) Overall, STAR-Fusion, Arriba, and STAR-SEQR are the most accurate and fastest for fusion detection on cancer transcriptomes.
+* [arriba](https://github.com/suhrig/arriba)Fast and accurate gene fusion detection from RNA-Seq data. top performer of ICGC-TCGA DREAM competition.
 * [fusioncatcher](https://github.com/ndaniel/fusioncatcher)  
 * [PRADA](https://github.com/crazyhottommy/PRADA_pipeline_Verhaak_lab) from our lab
 * [Fusion Matcher](https://github.com/ErasmusMC-Bioinformatics/fuma): Match predicted fusions according to chromosomal location or gene annotation(s)
@@ -258,6 +319,7 @@ Thanks [Rob Patro](https://twitter.com/nomad421) for pointing it out!
 * [IntSplice](http://www.med.nagoya-u.ac.jp/neurogenetics/IntSplice/): Upload a VCF (variant call format) file to predict if an SNV (single nucleotide variation) from intronic positions -50 to -3 is pathogenic or not.
 * [Whippet](http://www.biorxiv.org/content/early/2017/07/03/158519): an efficient method for the detection and quantification of alternative splicing reveals extensive transcriptomic complexity
 
+
 ### microRNAs and non-coding RNAs
 * [miARma-Seq workflow](http://miarmaseq.cbbio.es/) miRNA-Seq And RNA-Seq Multiprocess Analysis tool, a comprehensive pipeline analysis suite designed for mRNA, miRNA and circRNA identification and differential expression analysis, applicable to any sequenced organism.
 * [All the tools you need to analyse your miRNAs:[tools4miRNAs](http://tools4mirs.org/)
@@ -272,6 +334,7 @@ Thanks [Rob Patro](https://twitter.com/nomad421) for pointing it out!
 
 ### intron retention
 * [IRFinder](https://github.com/williamritchie/IRFinder)
+* [iread](https://github.com/genemine/iread) read this paper comparing IRFinder https://bmcgenomics.biomedcentral.com/articles/10.1186/s12864-020-6541-0
 
 ### Allel specific expression
 * paper [Tools and best practices for data processing in allelic expression analysis](http://genomebiology.biomedcentral.com/articles/10.1186/s13059-015-0762-6)
@@ -283,7 +346,11 @@ Thanks [Rob Patro](https://twitter.com/nomad421) for pointing it out!
 * [Comprehensive analyses of tumor immunity: implications for cancer immunotherapy](https://genomebiology.biomedcentral.com/articles/10.1186/s13059-016-1028-7) 
 * [pVAC-Seq](https://github.com/griffithlab/pVAC-Seq) is a cancer immunotherapy pipeline for the identification of personalized Variant Antigens by Cancer Sequencing (pVAC-Seq) that integrates tumor mutation and expression data (DNA- and RNA-Seq). It enables cancer immunotherapy research by using massively parallel sequence data to predicting tumor-specific mutant peptides (neoantigens) that can elicit anti-tumor T cell immunity. 
 * [JingleBells] (http://jinglebells.bgu.ac.il/) - A repository of standardized single cell RNA-Seq datasets for analysis and visualization in IGV of the raw reads at the single cell level. Currently focused on immune cells. (http://www.jimmunol.org/content/198/9/3375.long)
+* [immunedeconv](https://grst.github.io/immunedeconv/) - an R package for unified access to computational methods for estimating immune cell fractions from bulk RNA sequencing data.
 
+### Reads from xenografts
+
+* [Xenosplit](https://github.com/goknurginer/XenoSplit) XenoSplit is a fast computational tool to detect the true origin of the graft RNA-Seq and DNA-Seq libraries prior to profiling of patient-derived xenografts (PDXs). 
 
 ### single cell tutorials
 * [Course material in notebook format for learning about single cell bioinformatics methods](https://github.com/YeoLab/single-cell-bioinformatics)
@@ -320,6 +387,7 @@ Thanks [Rob Patro](https://twitter.com/nomad421) for pointing it out!
 * [Ginkgo](http://qb.cshl.edu/ginkgo/?q=/ESjKTTeZIdnoGwEB4WTu) A web tool for analyzing single-cell sequencing data.
 * [SingleCellExperiment bioc package](http://bioconductor.org/packages/devel/bioc/html/SingleCellExperiment.html) Defines a S4 class for storing data from single-cell experiments. This includes specialized methods to store and retrieve spike-in information, dimensionality reduction coordinates and size factors for each cell, along with the usual metadata for genes and libraries.
 * [ASAP](http://biorxiv.org/content/early/2016/12/22/096222): a Web-based platform for the analysis and inter-active visualization of single-cell RNA-seq data
+* [FASTGenomics](https://fastgenomics.org), an online platform to share single-cell RNA sequencing data and perform analyses using reproducible workflows. Users can upload their own data and use standard or customized workflows for the exploration and analysis of gene expression data ([Scholz et al. 2018](https://doi.org/10.1101/272476)).
 * [Seurat](http://www.satijalab.org/seurat.html) is an R package designed for the analysis and visualization of single cell RNA-seq data. It contains easy-to-use implementations of commonly used analytical techniques, including the identification of highly variable genes, dimensionality reduction (PCA, ICA, t-SNE), standard unsupervised clustering algorithms (density clustering, hierarchical clustering, k-means), and the discovery of differentially expressed genes and markers.
 * [R package for the statistical assessment of cell state hierarchies from single-cell RNA-seq data](http://bioconductor.org/packages/devel/bioc/html/sincell.html)  
 * [Monocle](http://cole-trapnell-lab.github.io/monocle-release/) Differential expression and time-series analysis for single-cell RNA-Seq and qPCR experiments.
@@ -348,6 +416,9 @@ Thanks [Rob Patro](https://twitter.com/nomad421) for pointing it out!
 * [Compare clusterings for single-cell sequencing](http://bioconductor.org/packages/devel/bioc/html/clusterExperiment.html) bioconductor package.The goal of this package is to encourage the user to try many different clustering algorithms in one package structure. We give tools for running many different clusterings and choices of parameters. We also provide visualization to compare many different clusterings and algorithm tools to find common shared clustering patterns.
 * [CIDR: Ultrafast and accurate clustering through imputation for single cell RNA-Seq data](http://biorxiv.org/content/early/2016/08/10/068775)
 * [SC3](http://bioconductor.org/packages/release/bioc/html/SC3.html)- consensus clustering of single-cell RNA-Seq data.  SC3 achieves high accuracy and robustness by consistently integrating different clustering solutions through a consensus approach. Tests on twelve published datasets show that SC3 outperforms five existing methods while remaining scalable, as shown by the analysis of a large dataset containing 44,808 cells. Moreover, an interactive graphical implementation makes SC3 accessible to a wide audience of users, and SC3 aids biological interpretation by identifying marker genes, differentially expressed genes and outlier cells.
+
+### nanostring
+* [NACHO (NAnostring quality Control dasHbOard) is developed for NanoString nCounter data.](https://mcanouil.github.io/NACHO/articles/NACHO.html#overview)
 
 ### advance of scRNA-seq tech
 * [Single-cell profiling of the developing mouse brain and spinal cord with split-pool barcoding](http://science.sciencemag.org/content/360/6385/176) no isolation of single cells needed!
